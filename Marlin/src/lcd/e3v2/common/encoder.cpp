@@ -36,7 +36,7 @@
 #include "../../marlinui.h"
 #include "../../../HAL/shared/Delay.h"
 
-#if HAS_SOUND
+#if HAS_BUZZER
   #include "../../../libs/buzzer.h"
 #endif
 
@@ -50,7 +50,13 @@ ENCODER_Rate EncoderRate;
 
 // TODO: Replace with ui.quick_feedback
 void Encoder_tick() {
-  TERN_(HAS_BEEPER, if (ui.sound_on) buzzer.click(10));
+  #if PIN_EXISTS(BEEPER)
+    if (ui.buzzer_enabled) {
+      WRITE(BEEPER_PIN, HIGH);
+      delay(10);
+      WRITE(BEEPER_PIN, LOW);
+    }
+  #endif
 }
 
 // Encoder initialization
@@ -64,7 +70,7 @@ void Encoder_Configuration() {
   #if BUTTON_EXISTS(ENC)
     SET_INPUT_PULLUP(BTN_ENC);
   #endif
-  #if HAS_BEEPER
+  #if PIN_EXISTS(BEEPER)
     SET_OUTPUT(BEEPER_PIN);     // TODO: Use buzzer.h which already inits this
   #endif
 }
@@ -87,10 +93,7 @@ EncoderState Encoder_ReceiveAnalyze() {
       #if PIN_EXISTS(LCD_LED)
         //LED_Action();
       #endif
-      if (!ui.backlight) {
-        ui.refresh_brightness();
-        return ENCODER_DIFF_NO;
-      }
+      if (!ui.backlight) ui.refresh_brightness();
       const bool was_waiting = wait_for_user;
       wait_for_user = false;
       return was_waiting ? ENCODER_DIFF_NO : ENCODER_DIFF_ENTER;
@@ -99,21 +102,21 @@ EncoderState Encoder_ReceiveAnalyze() {
   }
   if (newbutton != lastEncoderBits) {
     switch (newbutton) {
-      case 0:
-             if (lastEncoderBits == 1) temp_diff++;
-        else if (lastEncoderBits == 2) temp_diff--;
+      case ENCODER_PHASE_0:
+             if (lastEncoderBits == ENCODER_PHASE_3) temp_diff++;
+        else if (lastEncoderBits == ENCODER_PHASE_1) temp_diff--;
         break;
-      case 2:
-             if (lastEncoderBits == 0) temp_diff++;
-        else if (lastEncoderBits == 3) temp_diff--;
+      case ENCODER_PHASE_1:
+             if (lastEncoderBits == ENCODER_PHASE_0) temp_diff++;
+        else if (lastEncoderBits == ENCODER_PHASE_2) temp_diff--;
         break;
-      case 3:
-             if (lastEncoderBits == 2) temp_diff++;
-        else if (lastEncoderBits == 1) temp_diff--;
+      case ENCODER_PHASE_2:
+             if (lastEncoderBits == ENCODER_PHASE_1) temp_diff++;
+        else if (lastEncoderBits == ENCODER_PHASE_3) temp_diff--;
         break;
-      case 1:
-             if (lastEncoderBits == 3) temp_diff++;
-        else if (lastEncoderBits == 0) temp_diff--;
+      case ENCODER_PHASE_3:
+             if (lastEncoderBits == ENCODER_PHASE_2) temp_diff++;
+        else if (lastEncoderBits == ENCODER_PHASE_0) temp_diff--;
         break;
     }
     lastEncoderBits = newbutton;
@@ -157,10 +160,6 @@ EncoderState Encoder_ReceiveAnalyze() {
 
     temp_diff = 0;
   }
-  if (temp_diffState != ENCODER_DIFF_NO) {
-    TERN_(HAS_BACKLIGHT_TIMEOUT, ui.refresh_backlight_timeout());
-    if (!ui.backlight) ui.refresh_brightness();
-  }
   return temp_diffState;
 }
 
@@ -171,9 +170,9 @@ EncoderState Encoder_ReceiveAnalyze() {
 
   // LED light operation
   void LED_Action() {
-    LED_Control(RGB_SCALE_WARM_WHITE, 0x0F);
+    LED_Control(RGB_SCALE_WARM_WHITE,0x0F);
     delay(30);
-    LED_Control(RGB_SCALE_WARM_WHITE, 0x00);
+    LED_Control(RGB_SCALE_WARM_WHITE,0x00);
   }
 
   // LED initialization

@@ -33,6 +33,14 @@
 #endif
 
 //
+// Disable I2S stepper stream, by default
+//
+#undef I2S_STEPPER_STREAM
+#undef I2S_WS
+#undef I2S_BCK
+#undef I2S_DATA
+
+//
 // Limit Switches
 //
 #define X_STOP_PIN                            34
@@ -68,7 +76,7 @@
 // Heaters / Fans
 //
 #define HEATER_0_PIN                           2
-#define FAN0_PIN                              13
+#define FAN_PIN                               13
 #define HEATER_BED_PIN                         4
 
 //

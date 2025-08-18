@@ -31,11 +31,11 @@
 #include "../inc/MarlinConfig.h"
 
 #if ENABLED(GCODE_REPEAT_MARKERS)
-  #include "repeat.h"
+  #include "../feature/repeat.h"
 #endif
 
 #if ENABLED(MIXING_EXTRUDER)
-  #include "mixing.h"
+  #include "../feature/mixing.h"
 #endif
 
 #if !defined(POWER_LOSS_STATE) && PIN_EXISTS(POWER_LOSS)
@@ -43,7 +43,7 @@
 #endif
 
 #ifndef POWER_LOSS_ZRAISE
-  #define POWER_LOSS_ZRAISE 2 // Default Z-raise on outage or resume
+  #define POWER_LOSS_ZRAISE 2
 #endif
 
 //#define DEBUG_POWER_LOSS_RECOVERY
@@ -113,7 +113,7 @@ typedef struct {
   millis_t print_job_elapsed;
 
   // Relative axis modes
-  relative_t axis_relative;
+  uint8_t axis_relative;
 
   // Misc. Marlin flags
   struct {
@@ -138,7 +138,7 @@ class PrintJobRecovery {
   public:
     static const char filename[5];
 
-    static MediaFile file;
+    static SdFile file;
     static job_recovery_info_t info;
 
     static uint8_t queue_index_r;     //!< Queue index of the active command
@@ -153,9 +153,6 @@ class PrintJobRecovery {
     static void prepare();
 
     static void setup() {
-      #if PIN_EXISTS(OUTAGECON)
-        OUT_WRITE(OUTAGECON_PIN, HIGH);
-      #endif
       #if PIN_EXISTS(POWER_LOSS)
         #if ENABLED(POWER_LOSS_PULLUP)
           SET_INPUT_PULLUP(POWER_LOSS_PIN);
@@ -179,11 +176,11 @@ class PrintJobRecovery {
     static void open(const bool read) { card.openJobRecoveryFile(read); }
     static void close() { file.close(); }
 
-    static bool check();
+    static void check();
     static void resume();
     static void purge();
 
-    static void cancel() { purge(); }
+    static void cancel() { purge(); IF_DISABLED(NO_SD_AUTOSTART, card.autofile_begin()); }
 
     static void load();
     static void save(const bool force=ENABLED(SAVE_EACH_CMD_MODE), const float zraise=POWER_LOSS_ZRAISE, const bool raised=false);

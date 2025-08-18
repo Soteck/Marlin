@@ -1,9 +1,9 @@
 /**
  * Marlin 3D Printer Firmware
- * Copyright (c) 2021 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
  *
- * Based on Sprinter and grbl.
- * Copyright (c) 2011 Camiel Gubbels / Erik van der Zalm
+ * Copyright (c) 2021 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
+ * Copyright (c) 2016 Bob Cousins bobcousins42@googlemail.com
+ * Copyright (c) 2015-2016 Nico Tonnhofer wurstnase.reprap@gmail.com
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,6 +45,7 @@ uint8_t _getc();
 #include "../shared/math_32bit.h"
 #include "../shared/HAL_SPI.h"
 #include "fastio.h"
+#include "watchdog.h"
 #include "serial.h"
 
 // ------------------------
@@ -114,8 +115,8 @@ extern MSerialT serial_stream_3;
 // ADC
 // ------------------------
 
-#define HAL_ADC_VREF_MV   5000
-#define HAL_ADC_RESOLUTION  10
+#define HAL_ADC_VREF           5.0
+#define HAL_ADC_RESOLUTION    10
 
 /* ---------------- Delay in cycles */
 
@@ -185,7 +186,7 @@ constexpr inline char* strstr_constexpr(char* str, const char* target) {
 }
 
 // ------------------------
-// Free Memory Accessor
+// Class Utilities
 // ------------------------
 
 #pragma GCC diagnostic push
@@ -206,10 +207,6 @@ public:
 
   // Earliest possible init, before setup()
   MarlinHAL() {}
-
-  // Watchdog
-  static void watchdog_init();
-  static void watchdog_refresh();
 
   static void init() {}        // Called early in setup()
   static void init_board() {}  // Called less early in setup()
@@ -245,7 +242,7 @@ public:
   // Called by Temperature::init for each sensor at startup
   static void adc_enable(const uint8_t ch);
 
-  // Begin ADC sampling on the given channel. Called from Temperature::isr!
+  // Begin ADC sampling on the given channel
   static void adc_start(const uint8_t ch);
 
   // Is the ADC ready for reading?

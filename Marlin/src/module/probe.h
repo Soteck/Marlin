@@ -29,19 +29,13 @@
 
 #include "motion.h"
 
-#if ENABLED(DWIN_LCD_PROUI)
-  #include "../lcd/e3v2/proui/dwin.h"
-#endif
-
-#define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
-#include "../core/debug_out.h"
-
 #if HAS_BED_PROBE
   enum ProbePtRaise : uint8_t {
     PROBE_PT_NONE,      // No raise or stow after run_z_probe
     PROBE_PT_STOW,      // Do a complete stow after run_z_probe
     PROBE_PT_LAST_STOW, // Stow for sure, even in BLTouch HS mode
-    PROBE_PT_RAISE      // Raise to "between" clearance after run_z_probe
+    PROBE_PT_RAISE,     // Raise to "between" clearance after run_z_probe
+    PROBE_PT_BIG_RAISE  // Raise to big clearance after run_z_probe
   };
 #endif
 
@@ -51,14 +45,12 @@
   #define PROBE_TRIGGERED() (READ(Z_MIN_PIN) != Z_MIN_ENDSTOP_INVERTING)
 #endif
 
-#if ALL(DWIN_LCD_PROUI, INDIVIDUAL_AXIS_HOMING_SUBMENU, MESH_BED_LEVELING)
-  #define Z_POST_CLEARANCE HMI_data.z_after_homing
-#elif defined(Z_AFTER_HOMING)
-  #define Z_POST_CLEARANCE Z_AFTER_HOMING
+#ifdef Z_AFTER_HOMING
+   #define Z_POST_CLEARANCE Z_AFTER_HOMING
 #elif defined(Z_HOMING_HEIGHT)
-  #define Z_POST_CLEARANCE Z_HOMING_HEIGHT
+   #define Z_POST_CLEARANCE Z_HOMING_HEIGHT
 #else
-  #define Z_POST_CLEARANCE 10
+   #define Z_POST_CLEARANCE 10
 #endif
 
 #if ENABLED(PREHEAT_BEFORE_LEVELING)
@@ -68,10 +60,6 @@
   #ifndef LEVELING_BED_TEMP
     #define LEVELING_BED_TEMP 0
   #endif
-#endif
-
-#if ENABLED(SENSORLESS_PROBING)
-  extern abc_float_t offset_sensorless_adj;
 #endif
 
 class Probe {
@@ -86,11 +74,9 @@ public:
 
     static xyz_pos_t offset;
 
-    #if ANY(PREHEAT_BEFORE_PROBING, PREHEAT_BEFORE_LEVELING)
-      static void preheat_for_probing(const celsius_t hotend_temp, const celsius_t bed_temp, const bool early=false);
+    #if EITHER(PREHEAT_BEFORE_PROBING, PREHEAT_BEFORE_LEVELING)
+      static void preheat_for_probing(const celsius_t hotend_temp, const celsius_t bed_temp);
     #endif
-
-    static void probe_error_stop();
 
     static bool set_deployed(const bool deploy);
 
@@ -116,7 +102,7 @@ public:
         }
       #endif
 
-    #else // !IS_KINEMATIC
+    #else
 
       /**
        * Return whether the given position is within the bed, and whether the nozzle
@@ -138,10 +124,9 @@ public:
         }
       }
 
-    #endif // !IS_KINEMATIC
+    #endif
 
     static void move_z_after_probing() {
-      DEBUG_SECTION(mzah, "move_z_after_probing", DEBUGGING(LEVELING));
       #ifdef Z_AFTER_PROBING
         do_z_clearance(Z_AFTER_PROBING, true); // Move down still permitted
       #endif
@@ -151,21 +136,20 @@ public:
       return probe_at_point(pos.x, pos.y, raise_after, verbose_level, probe_relative, sanity_check);
     }
 
-  #else // !HAS_BED_PROBE
+  #else
 
-    static constexpr xyz_pos_t offset = xyz_pos_t(NUM_AXIS_ARRAY_1(0)); // See #16767
+    static constexpr xyz_pos_t offset = xyz_pos_t(LINEAR_AXIS_ARRAY(0, 0, 0, 0, 0, 0)); // See #16767
 
     static bool set_deployed(const bool) { return false; }
 
-    static bool can_reach(const_float_t rx, const_float_t ry, const bool=true) { return position_is_reachable(TERN_(HAS_X_AXIS, rx) OPTARG(HAS_Y_AXIS, ry)); }
+    static bool can_reach(const_float_t rx, const_float_t ry, const bool=true) { return position_is_reachable(rx, ry); }
 
-  #endif // !HAS_BED_PROBE
+  #endif
 
   static void move_z_after_homing() {
-    DEBUG_SECTION(mzah, "move_z_after_homing", DEBUGGING(LEVELING));
-    #if ALL(DWIN_LCD_PROUI, INDIVIDUAL_AXIS_HOMING_SUBMENU, MESH_BED_LEVELING) || defined(Z_AFTER_HOMING)
-      do_z_clearance(Z_POST_CLEARANCE, true);
-    #elif HAS_BED_PROBE
+    #ifdef Z_AFTER_HOMING
+      do_z_clearance(Z_AFTER_HOMING, true);
+    #elif BOTH(Z_AFTER_PROBING, HAS_BED_PROBE)
       move_z_after_probing();
     #endif
   }
@@ -204,15 +188,6 @@ public:
       }
     #endif
 
-    /**
-     * The nozzle is only able to move within the physical bounds of the machine.
-     * If the PROBE has an OFFSET Marlin may need to apply additional limits so
-     * the probe can be prevented from going to unreachable points.
-     *
-     * e.g., If the PROBE is to the LEFT of the NOZZLE, it will be limited in how
-     * close it can get the RIGHT edge of the bed (unless the nozzle is able move
-     * far enough past the right edge).
-     */
     static constexpr float _min_x(const xy_pos_t &probe_offset_xy=offset_xy) {
       return TERN(IS_KINEMATIC,
         (X_CENTER) - probe_radius(probe_offset_xy),
@@ -310,9 +285,10 @@ public:
   #endif
 
   // Basic functions for Sensorless Homing and Probing
-  #if HAS_DELTA_SENSORLESS_PROBING
-    static void set_offset_sensorless_adj(const_float_t sz);
-    static void refresh_largest_sensorless_adj();
+  #if USE_SENSORLESS
+    static void enable_stallguard_diag1();
+    static void disable_stallguard_diag1();
+    static void set_homing_current(const bool onoff);
   #endif
 
 private:

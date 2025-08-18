@@ -28,7 +28,7 @@
 
 #include "../../inc/MarlinConfigPre.h"
 
-#if HAS_HOTEND
+#if HAS_EXTRUDERS
 
 #include "../gcode.h"
 #include "../../module/temperature.h"
@@ -43,6 +43,10 @@
   #if ENABLED(CANCEL_OBJECTS)
     #include "../../feature/cancel_object.h"
   #endif
+#endif
+
+#if ENABLED(SINGLENOZZLE_STANDBY_TEMP)
+  #include "../../module/tool_change.h"
 #endif
 
 /**
@@ -122,7 +126,7 @@ void GcodeSuite::M104_M109(const bool isM109) {
     #endif
 
     if (thermalManager.isHeatingHotend(target_extruder) || !no_wait_for_cooling)
-      thermalManager.set_heating_message(target_extruder, !isM109 && got_temp);
+      thermalManager.set_heating_message(target_extruder);
   }
 
   TERN_(AUTOTEMP, planner.autotemp_M104_M109());
@@ -131,4 +135,4 @@ void GcodeSuite::M104_M109(const bool isM109) {
     (void)thermalManager.wait_for_hotend(target_extruder, no_wait_for_cooling);
 }
 
-#endif // HAS_HOTEND
+#endif // EXTRUDERS

@@ -21,10 +21,6 @@
  */
 #pragma once
 
-/**
- * mmu2.h - Support for Průša MMU2 and MMU2S
- */
-
 #include "../../inc/MarlinConfig.h"
 
 #if HAS_FILAMENT_SENSOR
@@ -51,7 +47,7 @@ public:
   static void mmu_loop();
   static void tool_change(const uint8_t index);
   static void tool_change(const char *special);
-  static int8_t get_current_tool();
+  static uint8_t get_current_tool();
   static void set_filament_type(const uint8_t index, const uint8_t type);
 
   static bool unload();
@@ -90,7 +86,6 @@ private:
   #endif
 
   #if ENABLED(MMU_EXTRUDER_SENSOR)
-    #define MMU_LOAD_FEEDRATE 19.02f // (mm/s)
     static void mmu_continue_loading();
   #endif
 

@@ -1,9 +1,7 @@
 /**
  * Marlin 3D Printer Firmware
  * Copyright (c) 2020 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
- *
- * Based on Sprinter and grbl.
- * Copyright (c) 2011 Camiel Gubbels / Erik van der Zalm
+ * Copyright (c) 2016 Bob Cousins bobcousins42@googlemail.com
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,20 +19,17 @@
  */
 #pragma once
 
-/**
- * HAL for Arduino AVR
- */
-
 #include "../shared/Marduino.h"
 #include "../shared/HAL_SPI.h"
 #include "fastio.h"
+#include "watchdog.h"
 #include "math.h"
 
 #ifdef USBCON
   #include <HardwareSerial.h>
 #else
+  #define HardwareSerial_h // Hack to prevent HardwareSerial.h header inclusion
   #include "MarlinSerial.h"
-  #define BOARD_NO_NATIVE_USB
 #endif
 
 #include <stdint.h>
@@ -109,48 +104,48 @@ typedef Servo hal_servo_t;
 
   #define MYSERIAL1 TERN(BLUETOOTH, btSerial, MSerial0)
 #else
-  #if !WITHIN(SERIAL_PORT, 0, 3)
-    #error "SERIAL_PORT must be from 0 to 3."
+  #if !WITHIN(SERIAL_PORT, -1, 3)
+    #error "SERIAL_PORT must be from 0 to 3, or -1 for USB Serial."
   #endif
   #define MYSERIAL1 customizedSerial1
 
   #ifdef SERIAL_PORT_2
-    #if !WITHIN(SERIAL_PORT_2, 0, 3)
-      #error "SERIAL_PORT_2 must be from 0 to 3."
+    #if !WITHIN(SERIAL_PORT_2, -1, 3)
+      #error "SERIAL_PORT_2 must be from 0 to 3, or -1 for USB Serial."
     #endif
     #define MYSERIAL2 customizedSerial2
   #endif
 
   #ifdef SERIAL_PORT_3
-    #if !WITHIN(SERIAL_PORT_3, 0, 3)
-      #error "SERIAL_PORT_3 must be from 0 to 3."
+    #if !WITHIN(SERIAL_PORT_3, -1, 3)
+      #error "SERIAL_PORT_3 must be from 0 to 3, or -1 for USB Serial."
     #endif
     #define MYSERIAL3 customizedSerial3
   #endif
 #endif
 
 #ifdef MMU2_SERIAL_PORT
-  #if !WITHIN(MMU2_SERIAL_PORT, 0, 3)
-    #error "MMU2_SERIAL_PORT must be from 0 to 3"
+  #if !WITHIN(MMU2_SERIAL_PORT, -1, 3)
+    #error "MMU2_SERIAL_PORT must be from 0 to 3, or -1 for USB Serial."
   #endif
   #define MMU2_SERIAL mmuSerial
 #endif
 
 #ifdef LCD_SERIAL_PORT
-  #if !WITHIN(LCD_SERIAL_PORT, 0, 3)
-    #error "LCD_SERIAL_PORT must be from 0 to 3."
+  #if !WITHIN(LCD_SERIAL_PORT, -1, 3)
+    #error "LCD_SERIAL_PORT must be from 0 to 3, or -1 for USB Serial."
   #endif
   #define LCD_SERIAL lcdSerial
   #if HAS_DGUS_LCD
-    #define LCD_SERIAL_TX_BUFFER_FREE() LCD_SERIAL.get_tx_buffer_free()
+    #define SERIAL_GET_TX_BUFFER_FREE() LCD_SERIAL.get_tx_buffer_free()
   #endif
 #endif
 
 //
 // ADC
 //
-#define HAL_ADC_VREF_MV   5000
-#define HAL_ADC_RESOLUTION  10
+#define HAL_ADC_VREF        5.0
+#define HAL_ADC_RESOLUTION 10
 
 //
 // Pin Mapping for M42, M43, M226
@@ -169,7 +164,7 @@ typedef Servo hal_servo_t;
 #define strtof strtod
 
 // ------------------------
-// Free Memory Accessor
+// Class Utilities
 // ------------------------
 
 #pragma GCC diagnostic push
@@ -190,10 +185,6 @@ public:
 
   // Earliest possible init, before setup()
   MarlinHAL() {}
-
-  // Watchdog
-  static void watchdog_init()    IF_DISABLED(USE_WATCHDOG, {});
-  static void watchdog_refresh() IF_DISABLED(USE_WATCHDOG, {});
 
   static void init();          // Called early in setup()
   static void init_board() {}  // Called less early in setup()
@@ -238,7 +229,7 @@ public:
     SBI(DIDR0, ch);
   }
 
-  // Begin ADC sampling on the given channel. Called from Temperature::isr!
+  // Begin ADC sampling on the given channel
   static void adc_start(const uint8_t ch) {
     #ifdef MUX5
       ADCSRB = ch > 7 ? _BV(MUX5) : 0;

@@ -4,6 +4,7 @@
  *
  * Based on Sprinter and grbl.
  * Copyright (c) 2011 Camiel Gubbels / Erik van der Zalm
+ * Copyright (c) 2020 Cyril Russo
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +26,7 @@
  ***************************************************************************/
 
 #if defined(__arm__) || defined(__thumb__)
+
 
 /*
   On ARM CPUs exception handling is quite powerful.
@@ -52,7 +54,7 @@
 
 #include "exception_hook.h"
 #include "../backtrace/backtrace.h"
-#include "../MinSerial.h"
+#include "../HAL_MinSerial.h"
 
 #define HW_REG(X)  (*((volatile unsigned long *)(X)))
 
@@ -219,7 +221,7 @@ bool resume_from_fault() {
   // So we'll just need to refresh the watchdog for a while and then stop for the system to reboot
   uint32_t last = start;
   while (PENDING(last, end)) {
-    hal.watchdog_refresh();
+    watchdog_refresh();
     while (millis() == last) { /* nada */ }
     last = millis();
     MinSerial::TX('.');
@@ -277,6 +279,8 @@ void CommonHandler_C(ContextStateFrame * frame, unsigned long lr, unsigned long 
   if (!faulted_from_exception) { // Not sure about the non_usage_fault, we want to try anyway, don't we ? && !non_usage_fault_occurred)
     // Try to resume to our handler here
     CFSR |= CFSR; // The ARM programmer manual says you must write to 1 all fault bits to clear them so this instruction is correct
+    // The frame will not be valid when returning anymore, let's clean it
+    savedFrame.CFSR = 0;
 
     frame->pc = (uint32_t)resume_from_fault; // Patch where to return to
     frame->lr = 0xDEADBEEF;  // If our handler returns (it shouldn't), let's make it trigger an exception immediately

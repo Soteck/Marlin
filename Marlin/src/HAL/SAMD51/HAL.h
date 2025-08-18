@@ -1,9 +1,8 @@
 /**
  * Marlin 3D Printer Firmware
- * Copyright (c) 2020 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
  *
- * Based on Sprinter and grbl.
- * Copyright (c) 2011 Camiel Gubbels / Erik van der Zalm
+ * Copyright (c) 2020 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
+ * SAMD51 HAL developed by Giuliano Zaro (AKA GMagician)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,16 +20,13 @@
  */
 #pragma once
 
-/**
- * SAMD51 HAL developed by Giuliano Zaro (AKA GMagician)
- */
-
 #define CPU_32_BIT
 
 #include "../shared/Marduino.h"
 #include "../shared/math_32bit.h"
 #include "../shared/HAL_SPI.h"
 #include "fastio.h"
+#include "watchdog.h"
 
 #ifdef ADAFRUIT_GRAND_CENTRAL_M4
   #include "MarlinSerial_AGCM4.h"
@@ -112,7 +108,7 @@ typedef Servo hal_servo_t;
 //
 
 //#define HAL_ADC_FILTERED          // Disable Marlin's oversampling. The HAL filters ADC values.
-#define HAL_ADC_VREF_MV   3300
+#define HAL_ADC_VREF         3.3
 #define HAL_ADC_RESOLUTION  10      // ... 12
 
 //
@@ -161,10 +157,6 @@ public:
   // Earliest possible init, before setup()
   MarlinHAL() {}
 
-  // Watchdog
-  static void watchdog_init()    IF_DISABLED(USE_WATCHDOG, {});
-  static void watchdog_refresh() IF_DISABLED(USE_WATCHDOG, {});
-
   static void init();          // Called early in setup()
   static void init_board() {}  // Called less early in setup()
   static void reboot();        // Restart the firmware from 0x0
@@ -198,7 +190,7 @@ public:
   // Called by Temperature::init for each sensor at startup
   static void adc_enable(const uint8_t ch) {}
 
-  // Begin ADC sampling on the given pin. Called from Temperature::isr!
+  // Begin ADC sampling on the given channel
   static void adc_start(const pin_t pin);
 
   // Is the ADC ready for reading?

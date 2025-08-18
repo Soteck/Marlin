@@ -23,15 +23,16 @@
 /**
  * Lock screen implementation for PRO UI
  * Author: Miguel A. Risco-Castillo (MRISCOC)
- * Version: 2.3.2
- * Date: 2022/11/20
+ * Version: 2.1
+ * Date: 2021/11/09
  */
 
 #include "../../../inc/MarlinConfigPre.h"
 
-#if ALL(DWIN_LCD_PROUI, HAS_LOCKSCREEN)
+#if ENABLED(DWIN_LCD_PROUI)
 
-#include "dwin_defines.h"
+#include "../../../core/types.h"
+#include "dwin_lcd.h"
 #include "dwinui.h"
 #include "dwin.h"
 #include "lockscreen.h"
@@ -49,11 +50,11 @@ void LockScreenClass::init() {
 }
 
 void LockScreenClass::draw() {
-  Title.SetCaption(GET_TEXT_F(MSG_LOCKSCREEN));
-  DWINUI::ClearMainArea();
+  Title.SetCaption(PSTR("Lock Screen"));
+  DWINUI::ClearMenuArea();
   DWINUI::Draw_Icon(ICON_LOGO, 71, 120);  // CREALITY logo
-  DWINUI::Draw_CenteredString(Color_White, 180, GET_TEXT_F(MSG_LOCKSCREEN_LOCKED));
-  DWINUI::Draw_CenteredString(Color_White, 200, GET_TEXT_F(MSG_LOCKSCREEN_UNLOCK));
+  DWINUI::Draw_CenteredString(Color_White, 180, F("Printer is Locked,"));
+  DWINUI::Draw_CenteredString(Color_White, 200, F("Scroll to unlock."));
   DWINUI::Draw_CenteredString(Color_White, 240, F("-> | <-"));
   DWIN_Draw_Box(1, HMI_data.Barfill_Color, 0, 260, DWIN_WIDTH, 20);
   DWIN_Draw_VLine(Color_Yellow, lock_pos * DWIN_WIDTH / 255, 260, 20);
@@ -72,4 +73,4 @@ void LockScreenClass::onEncoder(EncoderState encoder_diffState) {
   DWIN_UpdateLCD();
 }
 
-#endif // DWIN_LCD_PROUI && HAS_LOCKSCREEN
+#endif // DWIN_LCD_PROUI

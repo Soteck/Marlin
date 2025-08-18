@@ -52,7 +52,7 @@ public:
   static void PrintTimerStopped();
   static void FilamentRunout(const ExtUI::extruder_t extruder);
 
-  #if HAS_MEDIA
+  #if ENABLED(SDSUPPORT)
     /// Marlin informed us that a new SD has been inserted.
     static void SDCardInserted();
     /// Marlin informed us that the SD Card has been removed().
@@ -87,7 +87,7 @@ public:
 
   static uint8_t debug_count;
 
-  #if HAS_MEDIA
+  #if ENABLED(SDSUPPORT)
     static ExtUI::FileList filelist;
     static uint16_t filelist_offset;
     static int16_t filelist_selected;
@@ -134,7 +134,7 @@ private:
     bool initialized;
     uint8_t volume;
     uint8_t brightness;
-    bool abl_okay;
+    bool abl;
   } eeprom_data_t;
 };
 

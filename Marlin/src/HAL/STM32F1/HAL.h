@@ -1,9 +1,10 @@
 /**
  * Marlin 3D Printer Firmware
- * Copyright (c) 2020 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
  *
- * Based on Sprinter and grbl.
- * Copyright (c) 2011 Camiel Gubbels / Erik van der Zalm
+ * Copyright (c) 2020 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
+ * Copyright (c) 2016 Bob Cousins bobcousins42@googlemail.com
+ * Copyright (c) 2015-2016 Nico Tonnhofer wurstnase.reprap@gmail.com
+ * Copyright (c) 2017 Victor Perez
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +34,7 @@
 #include "../shared/HAL_SPI.h"
 
 #include "fastio.h"
+#include "watchdog.h"
 
 #include <stdint.h>
 #include <util/atomic.h>
@@ -81,7 +83,7 @@
 #define _MSERIAL(X) MSerial##X
 #define MSERIAL(X) _MSERIAL(X)
 
-#if ANY(STM32_HIGH_DENSITY, STM32_XL_DENSITY)
+#if EITHER(STM32_HIGH_DENSITY, STM32_XL_DENSITY)
   #define NUM_UARTS 5
 #else
   #define NUM_UARTS 3
@@ -139,7 +141,7 @@
     static_assert(false, "LCD_SERIAL_PORT must be from 1 to " STRINGIFY(NUM_UARTS) ". You can also use -1 if the board supports Native USB.")
   #endif
   #if HAS_DGUS_LCD
-    #define LCD_SERIAL_TX_BUFFER_FREE() LCD_SERIAL.availableForWrite()
+    #define SERIAL_GET_TX_BUFFER_FREE() LCD_SERIAL.availableForWrite()
   #endif
 #endif
 
@@ -147,7 +149,7 @@
  * TODO: review this to return 1 for pins that are not analog input
  */
 #ifndef analogInputToDigitalPin
-  #define analogInputToDigitalPin(p) pin_t(p)
+  #define analogInputToDigitalPin(p) (p)
 #endif
 
 #ifndef digitalPinHasPWM
@@ -189,7 +191,7 @@ typedef int8_t pin_t;
   #define HAL_ADC_RESOLUTION 12
 #endif
 
-#define HAL_ADC_VREF_MV   3300
+#define HAL_ADC_VREF         3.3
 
 uint16_t analogRead(const pin_t pin); // need hal.adc_enable() first
 void analogWrite(const pin_t pin, int pwm_val8); // PWM only! mul by 257 in maple!?
@@ -204,9 +206,7 @@ void analogWrite(const pin_t pin, int pwm_val8); // PWM only! mul by 257 in mapl
 #define JTAG_DISABLE()    afio_cfg_debug_ports(AFIO_DEBUG_SW_ONLY)
 #define JTAGSWD_DISABLE() afio_cfg_debug_ports(AFIO_DEBUG_NONE)
 
-#ifndef PLATFORM_M997_SUPPORT
-  #define PLATFORM_M997_SUPPORT
-#endif
+#define PLATFORM_M997_SUPPORT
 void flashFirmware(const int16_t);
 
 #define HAL_CAN_SET_PWM_FREQ      // This HAL supports PWM Frequency adjustment
@@ -220,6 +220,8 @@ void flashFirmware(const int16_t);
 
 // Memory related
 #define __bss_end __bss_end__
+
+void _delay_ms(const int ms);
 
 extern "C" char* _sbrk(int incr);
 
@@ -244,10 +246,6 @@ public:
 
   // Earliest possible init, before setup()
   MarlinHAL() {}
-
-  // Watchdog
-  static void watchdog_init()    IF_DISABLED(USE_WATCHDOG, {});
-  static void watchdog_refresh() IF_DISABLED(USE_WATCHDOG, {});
 
   static void init();          // Called early in setup()
   static void init_board() {}  // Called less early in setup()
@@ -282,7 +280,7 @@ public:
   // Called by Temperature::init for each sensor at startup
   static void adc_enable(const pin_t pin) { pinMode(pin, INPUT_ANALOG); }
 
-  // Begin ADC sampling on the given pin. Called from Temperature::isr!
+  // Begin ADC sampling on the given channel
   static void adc_start(const pin_t pin);
 
   // Is the ADC ready for reading?
